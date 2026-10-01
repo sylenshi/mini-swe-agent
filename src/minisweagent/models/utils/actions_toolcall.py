@@ -5,7 +5,7 @@ import time
 
 from jinja2 import StrictUndefined, Template
 
-from minisweagent.exceptions import FormatError
+from minisweagent.exceptions import FormatError, OutputTruncatedError
 from minisweagent.models.utils.openai_multimodal import expand_multimodal_content
 
 BASH_TOOL = {
@@ -37,8 +37,12 @@ def parse_toolcall_actions(
     ``max_tokens`` truncation).
     """
     template_kwargs = template_kwargs or {}
+    # A response cut off by the output token limit (finish_reason == "length")
+    # must not be treated as a regular format mistake: route it to the context
+    # recovery channel via OutputTruncatedError. Actions in it are never executed.
+    error_class = OutputTruncatedError if template_kwargs.get("finish_reason") == "length" else FormatError
     if not tool_calls:
-        raise FormatError(
+        raise error_class(
             {
                 "role": "user",
                 "content": Template(format_error_template, undefined=StrictUndefined).render(
@@ -63,7 +67,7 @@ def parse_toolcall_actions(
         if not isinstance(args, dict) or "command" not in args:
             error_msg += "Missing 'command' argument in bash tool call."
         if error_msg:
-            raise FormatError(
+            raise error_class(
                 {
                     "role": "user",
                     "content": Template(format_error_template, undefined=StrictUndefined).render(

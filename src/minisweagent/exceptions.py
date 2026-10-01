@@ -24,3 +24,13 @@ class UserInterruption(InterruptAgentFlow):
 
 class FormatError(InterruptAgentFlow):
     """Raised when the LM's output is not in the expected format."""
+
+
+class OutputTruncatedError(FormatError):
+    """Raised when a response was cut off by the output token limit
+    (finish_reason == "length") before a complete action could be parsed.
+
+    Subclasses FormatError so that, when context recovery is unavailable, the
+    existing consecutive-format-error correction channel still applies. Actions
+    from a truncated response are never executed.
+    """
