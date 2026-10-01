@@ -149,3 +149,4 @@ model:
     {%- endif %}
   model_kwargs:
     drop_params: true
+    api_base: https://api.stepfun.com/step_plan/v1

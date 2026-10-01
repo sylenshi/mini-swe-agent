@@ -114,7 +114,9 @@ agent:
 
 environment:
   cwd: "/testbed"
-  timeout: 60
+  # 物理断网：容器无网卡（namespace 级隔离）。agent 进程在宿主机，模型 API 调用不受影响。
+  run_args: ["--rm", "--network", "none"]
+  timeout: 180
   interpreter: ["bash", "-c"]
   env:
     PAGER: cat

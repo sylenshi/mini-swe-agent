@@ -144,6 +144,30 @@ def process_instance(
 
     try:
         env = get_sb_environment(config, instance)
+        # SWE-smith images start on `main` (clean repo, no bug). The injected
+        # bug lives on the instance branch: commit 1 = "Bug Patch", commit 2 =
+        # "Remove F2P Tests". Check out commit 1 so the agent faces the buggy
+        # code with the F2P tests present (matches swesmith eval semantics).
+        # We then rewrite git history into a single squashed commit: the bug
+        # patch would otherwise sit in `git log` for the agent to read (a
+        # leaked-solution channel observed in real trajectories).
+        if "swesmith" in str(instance.get("image_name", "")):
+            checkout = env.execute(
+                {
+                    "command": (
+                        f"git checkout {instance_id} && git checkout HEAD~1 && "
+                        "rm -rf .git && git init -q && "
+                        "git config user.email agent@proctorswe.local && "
+                        "git config user.name agent && "
+                        "git add -A && git commit -qm 'Initial commit' && "
+                        "git log --oneline -1"
+                    )
+                }
+            )
+            if checkout.get("returncode") != 0:
+                raise RuntimeError(
+                    f"SWE-smith branch checkout failed:\n{str(checkout.get('output', ''))[:2000]}"
+                )
         agent = ProgressTrackingAgent(
             model,
             env,
@@ -223,7 +247,10 @@ def main(
 
     dataset_path = DATASET_MAPPING.get(subset, subset)
     logger.info(f"Loading dataset {dataset_path}, split {split}...")
-    instances = list(load_dataset(dataset_path, split=split))
+    if Path(dataset_path).suffix in (".json", ".jsonl") and Path(dataset_path).exists():
+        instances = list(load_dataset("json", data_files=dataset_path, split=split))
+    else:
+        instances = list(load_dataset(dataset_path, split=split))
 
     instances = filter_instances(instances, filter_spec=filter_spec, slice_spec=slice_spec, shuffle=shuffle)
     if not redo_existing and (output_path / "preds.json").exists():
