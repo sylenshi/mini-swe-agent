@@ -120,10 +120,11 @@ agent:
   #   window_tokens: 32768     # 0 (default) disables compaction entirely
   #   reserve_tokens: 6554     # default: window // 5 (~80% waterline)
   #   keep_recent_tokens: 8192 # default: window // 4
-  #   chars_per_token: 2.5     # token estimation coefficient, calibrated on
-  #   #                          step-5-preview code trajectories (fitted 2.25~3.69,
-  #   #                          median ~2.6; the 4.0 default systematically under-
-  #   #                          estimates -> compaction fires late). Refit per model:
+  #   chars_per_token: 2.6     # token estimation coefficient; also the code
+  #   #                          default since the 12k smoke (fitted 2.25~3.69,
+  #   #                          median ~2.6 on step-5-preview code trajectories;
+  #   #                          4.0 systematically underestimates -> compaction
+  #   #                          fires late). Refit per model:
   #   #                          python workspace/replay_context.py runs/<dir> --mode calibrate
   #   obs_max_chars: 12000     # observation display caps (tail-priority), see
   #   obs_max_lines: 400       #   observation_template below. Scale these down for

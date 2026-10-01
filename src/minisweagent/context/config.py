@@ -26,9 +26,12 @@ class ContextConfig(BaseModel):
     """Token budget of recent messages (whole action groups) kept verbatim when
     compacting. 0 derives window_tokens // 4."""
 
-    chars_per_token: float = 4.0
+    chars_per_token: float = 2.6
     """Fallback estimation coefficient for messages not covered by an API usage
-    anchor (~4 chars/token for English/code; calibrate per model via smoke runs)."""
+    anchor. 2.6 fits code-heavy conversations measured against StepFun usage
+    (smoke 2026-10: anchored deviation mean ~8%, worst -43% on checkpoint-dense
+    views at 2.8); a lower value biases toward overestimation, which triggers
+    compaction earlier and is the safe direction on real small-window models."""
 
     fold_max_step_entries: int = 32
     """Maximum number of folded step entries kept in a checkpoint."""
