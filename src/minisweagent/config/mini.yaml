@@ -110,19 +110,23 @@ environment:
     TQDM_DISABLE: '1'
 model:
   observation_template: |
-    {%- if output.output | length < 10000 -%}
+    {%- set all_lines = output.output.splitlines() -%}
+    {%- if output.output | length <= context.obs_max_chars and all_lines | length <= context.obs_max_lines -%}
     {
       "returncode": {{ output.returncode }},
       "output": {{ output.output | tojson }}
       {%- if output.exception_info %}, "exception_info": {{ output.exception_info | tojson }}{% endif %}
     }
     {%- else -%}
+    {%- set tail = all_lines[-context.obs_max_lines:] | join('\n') -%}
+    {%- if tail | length > context.obs_max_chars -%}
+    {%- set tail = tail[-context.obs_max_chars:] -%}
+    {%- endif -%}
     {
       "returncode": {{ output.returncode }},
-      "output_head": {{ output.output[:5000] | tojson }},
-      "output_tail": {{ output.output[-5000:] | tojson }},
-      "elided_chars": {{ output.output | length - 10000 }},
-      "warning": "Output too long."
+      "output_tail": {{ tail | tojson }},
+      "elided_chars": {{ (output.output | length) - (tail | length) }},
+      "warning": "Output too long; only the tail is shown. Redirect to a file to inspect the full output."
       {%- if output.exception_info %}, "exception_info": {{ output.exception_info | tojson }}{% endif %}
     }
     {%- endif -%}

@@ -168,12 +168,16 @@ def process_instance(
                 raise RuntimeError(
                     f"SWE-smith branch checkout failed:\n{str(checkout.get('output', ''))[:2000]}"
                 )
+        agent_kwargs = {
+            **config.get("agent", {}),
+            "events_output_path": instance_dir / f"{instance_id}.events.jsonl",
+        }
         agent = ProgressTrackingAgent(
             model,
             env,
             progress_manager=progress_manager,
             instance_id=instance_id,
-            **config.get("agent", {}),
+            **agent_kwargs,
         )
         info = agent.run(task)
         exit_status = info.get("exit_status")

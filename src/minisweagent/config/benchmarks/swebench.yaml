@@ -111,6 +111,18 @@ agent:
     </instructions>
   step_limit: 250
   cost_limit: 3.
+  # Context window management (disabled by default; nothing is hardcoded).
+  # The effective window is decoupled from the provider's real limit: set it to
+  # any value (8192 / 16384 / 32768 ...) to run large-window API models under a
+  # small budget, or to the model's true window for small local models.
+  # Override per run with: -c agent.context.window_tokens=16384
+  # context:
+  #   window_tokens: 32768     # 0 (default) disables compaction entirely
+  #   reserve_tokens: 6554     # default: window // 5 (~80% waterline)
+  #   keep_recent_tokens: 8192 # default: window // 4
+  #   chars_per_token: 4.0     # token estimation coefficient (calibrate per model)
+  #   obs_max_chars: 12000     # observation display caps (tail-priority), see
+  #   obs_max_lines: 400       #   observation_template below
 
 environment:
   cwd: "/testbed"
@@ -135,27 +147,24 @@ model:
     <exception>{{output.exception_info}}</exception>
     {% endif -%}
     <returncode>{{output.returncode}}</returncode>
-    {% if output.output | length < 10000 -%}
+    {%- set all_lines = output.output.splitlines() -%}
+    {%- if output.output | length <= context.obs_max_chars and all_lines | length <= context.obs_max_lines -%}
     <output>
     {{ output.output -}}
     </output>
     {%- else -%}
+    {%- set tail = all_lines[-context.obs_max_lines:] | join('\n') -%}
+    {%- if tail | length > context.obs_max_chars -%}
+    {%- set tail = tail[-context.obs_max_chars:] -%}
+    {%- endif -%}
     <warning>
-    The output of your last command was too long.
-    Please try a different command that produces less output.
-    If you're looking at a file you can try use head, tail or sed to view a smaller number of lines selectively.
-    If you're using grep or find and it produced too much output, you can use a more selective search pattern.
-    If you really need to see something from the full command's output, you can redirect output to a file and then search in that file.
+    The output of your last command was too long; only the tail is shown
+    (last {{ context.obs_max_lines }} lines / {{ context.obs_max_chars }} chars, {{ (output.output | length) - (tail | length) }} characters elided).
+    The traceback and test summary are usually at the end. To inspect the full output,
+    redirect it to a file and search selectively, e.g. `your_command > /tmp/out.txt` then `grep -n "pattern" /tmp/out.txt`.
     </warning>
-    {%- set elided_chars = output.output | length - 10000 -%}
-    <output_head>
-    {{ output.output[:5000] }}
-    </output_head>
-    <elided_chars>
-    {{ elided_chars }} characters elided
-    </elided_chars>
     <output_tail>
-    {{ output.output[-5000:] }}
+    {{ tail -}}
     </output_tail>
     {%- endif -%}
   format_error_template: |
